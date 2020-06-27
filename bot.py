@@ -68,8 +68,8 @@ async def on_message(message):
     global random_games_running
 
     await load_opus_lib()
-    print(discord.opus.is_loaded(), flush = True)
-    print(message.author, message.content, flush=True)
+    print(discord.opus.is_loaded())
+    print(message.author, message.content)
     try:
         if message.author == client.user:
             return
@@ -96,12 +96,12 @@ async def on_message(message):
 
         r = re.search(r'^!connect (\d+)', message.content)
         if r:
-            print(r.group(1), flush = True)
+            print(r.group(1))
             for guild in client.guilds:
                 for vc in guild.voice_channels:
-                    print(vc.id, flush = True)
+                    print(vc.id)
                     if str(vc.id) == str(r.group(1)):
-                        print(f"Connected to voice {vc.name}, flush = True")
+                        print(f"Connected to voice {vc.name}")
                         con_vc = await vc.connect()
                         voices[str(vc.id)] = con_vc
                         await message.add_reaction("<:pogtim:677772157765419035>")
@@ -122,14 +122,14 @@ async def on_message(message):
                     vc = voices[r2.group(1)]
 
                     # player = YTAudio(r2.group(2))
-                    # print("Running", flush = True)
+                    # print("Running")
                     # f = open('./audio/output.raw', 'rb')
-                    # print(f, flush = True)
+                    # print(f)
                     # player = discord.PCMAudio(f)
                     player = create_YTAudio(r2.group(2), message.channel)
                     def err_func(err):
                         if err:
-                            print(str(err), flush = True)
+                            print(str(err))
                             message.channel.send(str(err))
                     vc.play(player, after = err_func)
                     while vc.is_playing():
@@ -181,7 +181,7 @@ async def on_message(message):
             await message.channel.send("The server has the following players online: {0}".format(", ".join(query.players.names)))
     except Exception as e:
         await message.channel.send(str(e))
-        print(str(e), flush = True)
+        print(str(e))
 
 
 @client.event
@@ -192,7 +192,7 @@ async def on_disconnect():
 
 @client.event
 async def on_voice_state_update(member, before, after):
-    print(member.name, " from ", before.channel, " to ", after.channel, flush = True)
+    print(member.name, " from ", before.channel, " to ", after.channel)
     if 'CoffeeVector' == member.name:
         if after.channel == None:
             for guild in client.guilds:
@@ -213,7 +213,7 @@ async def on_voice_state_update(member, before, after):
 @client.event
 async def on_error(event, *args, **kwargs):
     return
-    print("ERROR", flush = True)
+    print("ERROR")
     for guild in client.guilds:
         for channel in guild.channels:
             if channel.name == error_channel:
@@ -236,7 +236,7 @@ async def on_message_edit(before, after):
 
 @client.event
 async def on_message_delete(before):
-    print("DEleTE", flush = True)
+    print("DEleTE")
     if before.author == client.user:
         return
     await before.channel.send(f"\"{before.content}\" <:icu:678121250840641547>")
@@ -250,7 +250,7 @@ async def on_member_update(before, after):
     global anti_spam
     global spam_lock
     global tfti_queue
-    print("Update ", time.time(), flush=True)
+    print("Update ", time.time())
     guild = after.guild
 
     def check_users():
@@ -285,15 +285,15 @@ async def on_member_update(before, after):
 
     to_remove = []
     async with spam_lock:
-        print("Got lock", flush=True)
+        print("Got lock")
         for g in anti_spam:
             if g not in second_matches.keys():
                 to_remove.append(g)
-        print(f"Removing {to_remove} from anti_spam, was {anti_spam}", flush = True)
+        print(f"Removing {to_remove} from anti_spam, was {anti_spam}")
         anti_spam = [g for g in anti_spam if g not in to_remove]
 
-    print("Anti Spam: ", anti_spam, flush=True)
-    print("Matches: ", second_matches, flush=True)
+    print("Anti Spam: ", anti_spam)
+    print("Matches: ", second_matches)
 
     for game, _ in first_matches.items():
         if game in second_matches.keys():
@@ -303,14 +303,14 @@ async def on_member_update(before, after):
 
             if len(ppl) > 1 and game not in black_list:
                 async with spam_lock:
-                    print("Got lock 2", flush = True)
+                    print("Got lock 2")
                     if game in anti_spam:
-                        print(f"Skipping {game} due to anti spam", flush = True)
+                        print(f"Skipping {game} due to anti spam")
                         continue
                     for channel in guild.channels:
                         if channel.name == special_channel:
                             await channel.send(f"Tfti to {game} @{' @'.join(ppl)}")
-                            print(f"Sending {game}", flush=True)
+                            print(f"Sending {game}")
                             anti_spam.append(game)
 
 @client.event
