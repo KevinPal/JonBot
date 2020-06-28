@@ -22,6 +22,7 @@ import time
 import random
 
 from audio import *
+from jon import *
 
 client = discord.Client()
 
@@ -50,16 +51,14 @@ handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w'
 handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
 logger.addHandler(handler)
 
-reg = re.compile(r'^`*\s*([Uu]+|[Hh]+|[Mm]+|\s+)+\s*`*$')
-re_reg = re.compile(r'^`*\s*([Rr]+[Ee]+)+\s*`*$')
-
-voices = {}
-
-
 
 guesses = {}
 random_games = []
 random_games_running = False
+
+opus_loaded = False
+
+jons = {}
 
 @client.event
 async def on_message(message):
@@ -67,119 +66,22 @@ async def on_message(message):
     global voices
     global random_games
     global random_games_running
+    global opus_loaded
 
-    await load_opus_lib()
-    print(discord.opus.is_loaded())
+    if not opus_loaded:
+        await load_opus_lib()
+        opus_loaded = True
+
+    if message.guild.id not in jons.keys():
+        jons[message.guild.id] = Jon(message.guild.id)
+    jon = jons[message.guild.id]
+
     print(message.author, message.content)
     try:
         if message.author == client.user:
             return
-        if reg.match(message.content):
-            await message.channel.send(message.content + '?')
-        if re_reg.match(message.content):
-            await message.channel.send(message.content)
-        if '<@713473249903771690>' in message.content: #jon bot
-            if any(x in message.content.lower() for x in curses):
-                await message.channel.send("<:kevsad:677770488486952961>")
-            else:
-                await message.channel.send("uh")
-        if '<@!179848643321266176>' in message.content: #jon
-            await message.channel.send("uh")
-            return
+        await jon.do_message(message)
 
-        if message.mention_everyone:
-            await message.add_reaction("<:clangry:677773656931434496>")
-        if message.tts:
-            await message.add_reaction("<:pogtim:677772157765419035>")
-
-        if random_games_running:
-            random_games.append(message.content)
-
-        r = re.search(r'^!connect (\d+)', message.content)
-        if r:
-            print(r.group(1))
-            for guild in client.guilds:
-                for vc in guild.voice_channels:
-                    print(vc.id)
-                    if str(vc.id) == str(r.group(1)):
-                        print(f"Connected to voice {vc.name}")
-                        con_vc = await vc.connect()
-                        voices[str(vc.id)] = con_vc
-                        await message.add_reaction("<:pogtim:677772157765419035>")
-
-        r2 = re.search(r'^!disconnect (\d+)', message.content)
-        if r2:
-            if str(r2.group(1)) in voices.keys():
-                await message.add_reaction("<:pogtim:677772157765419035>")
-                await voices[r2.group(1)].disconnect()
-                del voices[r2.group(1)]
-            else:
-                await message.channel.send("Not connected to channel")
-
-        r2 = re.search(r'^!yeet (\d+) (.*)', message.content)
-        if r2:
-            if str(r2.group(1)) in voices.keys():
-                try:
-                    vc = voices[r2.group(1)]
-
-                    # player = YTAudio(r2.group(2))
-                    # print("Running")
-                    # f = open('./audio/output.raw', 'rb')
-                    # print(f)
-                    # player = discord.PCMAudio(f)
-                    player = create_YTAudio(r2.group(2), message.channel)
-                    def err_func(err):
-                        if err:
-                            print(str(err))
-                            message.channel.send(str(err))
-                    vc.play(player, after = err_func)
-                    while vc.is_playing():
-                        await asyncio.sleep(1)
-                        await player.update_msg()
-                except Exception as e:
-                    await message.channel.send(f"Here {str(e)}")
-            else:
-                await message.channel.send("Not connected to channel")
-
-        r2 = re.search(r'flip a coin', message.content)
-        if r2:
-            await message.channel.send("Heads" if random.randint(0, 1) == 1 else "Tails")
-
-        r2 = re.search(r'roll a die', message.content)
-        if r2:
-            await message.channel.send(str(random.randint(0, 5) + 1))
-
-        r2 = re.search(r'roll a (\d+) sided die', message.content)
-        if r2:
-            await message.channel.send(str(random.randint(0, int(r2.group(1))-1) + 1))
-
-        r2 = re.search(r'!yes', message.content)
-        if r2:
-            await message.channel.send("Yes")
-
-        r2 = re.search(r'!no', message.content)
-        if r2:
-            await message.channel.send("Yes")
-
-        r2 = re.search(r'!game picker start', message.content)
-        if r2:
-            await message.channel.send("Send games to randomly choose from")
-            random_games = []
-            random_games_running = True
-
-        r2 = re.search(r'!game picker end', message.content)
-        if r2:
-            await message.channel.send(str(random_games[random.randint(0, len(random_games)-2)]))
-            random_games = []
-            random_games_running = False
-
-        r2 = re.search(r'!mc status', message.content)
-        if r2:
-            server = MinecraftServer.lookup("thebeanserver.minecraftr.us:25565")
-            status = server.status()
-            await message.channel.send("The server has {0} players and replied in {1} ms".format(status.players.online, status.latency))
-            query = server.query()
-            await message.channel.send("The server has the following players online: {0}".format(", ".join(query.players.names)))
     except Exception as e:
         await message.channel.send(str(e))
         print(str(e))
