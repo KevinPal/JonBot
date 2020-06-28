@@ -121,9 +121,6 @@ class Jon:
         for _, (func, raw_reg) in rax.items():
             s +=  f"{func.__name__.replace('_', ' ')}: `{raw_reg}`" + '\n'
         await message.channel.send(s)
-        
-
-
 
     @_jon_cmd
     async def connect(self, message, *args):
@@ -131,7 +128,7 @@ class Jon:
         Connects to a voice channel
         Usage: !connect {channel_id}
         '''
-        
+
         if len(args) != 2:
             raise InvalidArgsException()
 
@@ -151,7 +148,7 @@ class Jon:
         Disconnects from a voice channel
         Usage: !disconnect {channel_id}
         '''
-        
+
         if len(args) != 2:
             raise InvalidArgsException()
 
@@ -170,7 +167,7 @@ class Jon:
         Plays a youtube video. Must be already connected
         Usage: !yeet {channel_id} {youtube_url}
         '''
-        
+
         if len(args) != 3:
             raise InvalidArgsException()
 
@@ -243,8 +240,4 @@ class Jon:
         await message.channel.send("The server has {0} players and replied in {1} ms".format(status.players.online, status.latency))
         query = server.query()
         await message.channel.send("The server has the following players online: {0}".format(", ".join(query.players.names)))
-
-
-
-
 
