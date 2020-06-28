@@ -66,6 +66,7 @@ class YTAudio(discord.AudioSource):
         self.message = None
         self.done = False
         self.channel = channel
+        self.encoder = discord.opus.Encoder()
 
         try:
             video = pafy.new(url)
@@ -111,6 +112,7 @@ class YTAudio(discord.AudioSource):
         try:
             while True: #len(self.data) < frame_size:
                 n = next(self.data_iter)
+                self.encoder.encode(n, frame_size);
                 if not n:
                     break
                 self.data.extend(n)
