@@ -1,4 +1,5 @@
 import re
+from mcstatus import MinecraftServer
 import random
 
 class InvalidArgsException(Exception):
@@ -6,6 +7,7 @@ class InvalidArgsException(Exception):
 
 cmds = {}
 rax = {}
+curses = ['fuck']
 
 class Jon:
 
@@ -79,6 +81,7 @@ class Jon:
 
     @_jon_rax(r'<@713473249903771690>')
     async def jon_bot_uh_rax(self, message):
+        global curses
         if any(x in message.content.lower() for x in curses):
             await message.channel.send("<:kevsad:677770488486952961>")
         else:

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import discord
-from mcstatus import MinecraftServer
 import datetime
 import threading
 from pydub import AudioSegment
@@ -33,7 +32,6 @@ emotes = ["<:teem:677761555521339412>", "<:pogtim:677772157765419035>",
         "<:marsus:678056307441532958>", "<:kevsad:677770488486952961>", 
         "<:clangry:677773656931434496>"]
 
-curses = ['fuck']
 
 
 special_role = 'Class A-1'
