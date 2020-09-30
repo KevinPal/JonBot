@@ -1,6 +1,21 @@
 import re
 from mcstatus import MinecraftServer
+import numpy as np
 import random
+from prettytable import PrettyTable
+import itertools
+
+
+thumbs_down = '👎'
+thumbs_up = '👍'
+
+emotes = ["<:teem:677761555521339412>", "<:pogtim:677772157765419035>", 
+        "<:PixKev:687506615691509760>", "<:PixJon2:687553248940261426>", 
+        "<:OhGodOhFuck:681622273282670661>", "<:huh:678051783679148051>", 
+        "<:e1010:678122150128910336>", "<:marshade:678055909670256662>", 
+        "<:marsus:678056307441532958>", "<:kevsad:677770488486952961>", 
+        "<:clangry:677773656931434496>"]
+
 
 class InvalidArgsException(Exception):
     pass
@@ -23,11 +38,13 @@ class Jon:
             return fun
         return _jon_rax_internal
 
-    def __init__(self, guild_id):
+    def __init__(self, guild_id, client):
         self.guild_id = guild_id
         self.voices = {}
+        self.client = client
         self.random_games = []
         self.random_games_running = False
+        self.poll = None
 
     async def do_message(self, message):
         global cmds
@@ -59,6 +76,71 @@ class Jon:
                     await message.channel.send(f"Unknown Error\n{str(e)}")
                 return
 
+    async def do_reaction(self, reaction, user, removed):
+        if self.poll != None and self.poll['msg'].id == reaction.message.id:
+            if user == self.client.user:
+                return
+            else:
+                def remove_ignore(lst, u):
+                    try:
+                        lst.remove(u)
+                    except ValueError:
+                        return
+                if user.id in self.poll['all_ids']:
+
+                    has_yes = False
+                    has_no = False
+
+                    for test_rax in reaction.message.reactions:
+                        async for test_user in test_rax.users():
+                            if test_user.id == user.id:
+                                if test_rax.emoji == thumbs_up:
+                                    has_yes = True
+                                if test_rax.emoji == thumbs_down:
+                                    has_no = True
+
+                    remove_ignore(self.poll['yes'], user)
+                    remove_ignore(self.poll['no'], user)
+                    remove_ignore(self.poll['undecided'], user)
+
+                    if has_yes == has_no:
+                        self.poll['undecided'].append(user)
+                    elif has_yes:
+                        self.poll['yes'].append(user)
+                    elif has_no:
+                        self.poll['no'].append(user)
+
+                    x = PrettyTable(max_table_width = 30)
+
+                    column_names = ["Yes", "No", "Undecided"]
+                    get_names = lambda lst: [person.nick.strip() if person.nick != None else person.name.strip() for person in lst]
+
+                    def do_padding(*args, fillvalue=""):
+                        data = [list(arg) for arg in args]
+                        max_len = max(len(lst) for lst in data)
+                        for lst in data:
+                            yield lst + [fillvalue] * (max_len - len(lst))
+
+                    zipper = zip(column_names,do_padding(
+                        get_names(self.poll['yes']),
+                        get_names(self.poll['no']),
+                        get_names(self.poll['undecided']),
+                        fillvalue="")
+                        )
+                    for title,lst in zipper:
+                        x.add_column(title,lst)
+
+                    await self.poll['msg'].edit(content = f"```{str(x)}```")
+
+
+        else:
+            await reaction.message.add_reaction(emotes[random.randint(0, len(emotes)-1)])
+
+
+    @_jon_rax(r'<:kevsad:677770488486952961>')
+    async def kevsad_rax(self, message):
+        await message.channel.send("<:kevsad:677770488486952961>")
+
     @_jon_rax(r'flip a coin')
     async def flip_coin_rax(self, message):
         await message.channel.send("Heads" if random.randint(0, 1) == 1 else "Tails")
@@ -71,7 +153,7 @@ class Jon:
     async def roll_n_die_rax(self, message):
         await message.channel.send(str(random.randint(0, int(r2.group(1))-1) + 1))
 
-    @_jon_rax(r'^\s*([Uu]+|[Hh]+|[Mm]+|\s+)+\s*$')
+    @_jon_rax(r'^\s*([Uu]+([Hh]+|[Mm]+)|\s+|([Hh]+[Uh]+[Hh]+))+\s*$')
     async def jon_uh_q_rax(self, message):
         await message.channel.send(message.content + '?')
 
@@ -140,7 +222,7 @@ class Jon:
 
         voice_id = str(args[1])
 
-        for guild in client.guilds:
+        for guild in self.client.guilds:
             for vc in guild.voice_channels:
                 if str(vc.id) == voice_id:
                     print(f"Connected to voice {vc.name}")
@@ -200,6 +282,37 @@ class Jon:
         else:
             await message.channel.send("Not connected to channel")
 
+    @_jon_cmd
+    async def split_grp(self, message, *args):
+        '''
+        Splits people into groups
+        Usage: !split_grp {num_groups} {name1} {name2} ...
+        '''
+        if len(args) <= 2:
+            raise InvalidArgsException()
+
+        out = ''
+        num_groups = int(args[1])
+        names = list(args[2:])
+        group_size = len(names) / num_groups
+        if not group_size.is_integer():
+            out += f"Could not evenly split {len(names)} names into {num_groups} groups\n"
+        group_size = int(group_size)
+        np.random.shuffle(names)
+        groups = np.array_split(names, num_groups)
+        groups = [x for x in groups if x.size > 0]
+        for i in range(len(groups)):
+            out += f"Group {i+1}: {', '.join(groups[i])}\n"
+        await message.channel.send(out)
+
+    @_jon_cmd
+    async def imposter(self, message, *args):
+        '''
+        Jon is always the imposter
+        Usage: !imposter
+        '''
+        await message.channel.send("The imposter is Jon")
+
 
     @_jon_cmd
     async def yes(self, message, *args):
@@ -247,7 +360,34 @@ class Jon:
         query = server.query()
         await message.channel.send("The server has the following players online: {0}".format(", ".join(query.players.names)))
 
+    @_jon_cmd
+    async def poll(self, message, *args):
+        '''
+        Starts a poll for a specific role
+        !poll {role} 
+        '''
+        role = args[1]
 
+        # New poll
+        ppl = []
+        for guild in self.client.guilds:
+            if guild.id == self.guild_id:
+                for member in guild.members:
+                    if role.lower() in [r.name.lower() for r in member.roles]:
+                        ppl.append(member)
+                break
+        self.poll = {'yes': [], 'no': [], 'undecided': ppl, 'all_ids': [u.id for u in ppl]}
 
+        ppl_names = [person.nick.strip() if person.nick != None else person.name.strip() for person in ppl]
+        x = PrettyTable()
 
+        column_names = ["Yes", "No", "Undecided"]
+        x.add_column(column_names[0], [""] * len(ppl_names))
+        x.add_column(column_names[1], [""] * len(ppl_names))
+        x.add_column(column_names[2], ppl_names)
+        self.poll['msg'] = await message.channel.send('```' + str(x) + '```')
+        await self.poll['msg'].add_reaction(thumbs_up)
+        await self.poll['msg'].add_reaction(thumbs_down)
+
+        # await self.message.edit(content = msg)
 

@@ -25,13 +25,6 @@ from jon import *
 
 client = discord.Client()
 
-emotes = ["<:teem:677761555521339412>", "<:pogtim:677772157765419035>", 
-        "<:PixKev:687506615691509760>", "<:PixJon2:687553248940261426>", 
-        "<:OhGodOhFuck:681622273282670661>", "<:huh:678051783679148051>", 
-        "<:e1010:678122150128910336>", "<:marshade:678055909670256662>", 
-        "<:marsus:678056307441532958>", "<:kevsad:677770488486952961>", 
-        "<:clangry:677773656931434496>"]
-
 
 
 special_role = 'Class A-1'
@@ -71,7 +64,7 @@ async def on_message(message):
         opus_loaded = True
 
     if message.guild.id not in jons.keys():
-        jons[message.guild.id] = Jon(message.guild.id)
+        jons[message.guild.id] = Jon(message.guild.id, client)
     jon = jons[message.guild.id]
 
     print(message.author, message.content)
@@ -210,13 +203,27 @@ async def on_member_update(before, after):
                         continue
                     for channel in guild.channels:
                         if channel.name == special_channel:
-                            await channel.send(f"Tfti to {game} @{' @'.join(ppl)}")
+                            # await channel.send(f"Tfti to {game} @{' @'.join(ppl)}")
                             print(f"Sending {game}")
                             anti_spam.append(game)
 
 @client.event
 async def on_reaction_add(reaction, user):
-    await reaction.message.add_reaction(emotes[random.randint(0, len(emotes)-1)])
+    jon = jons[reaction.message.guild.id]
+    try:
+        await jon.do_reaction(reaction, user, False)
+    except Exception as e:
+        await reaction.message.channel.send(str(e))
+
+@client.event
+async def on_reaction_remove(reaction, user):
+    jon = jons[reaction.message.guild.id]
+    try:
+        await jon.do_reaction(reaction, user, True)
+    except Exception as e:
+        await reaction.message.channel.send(str(e))
+
+
 
 token = ''
 with open('token_file', 'r') as f:
