@@ -4,10 +4,8 @@ import numpy as np
 import random
 from prettytable import PrettyTable
 import itertools
-
-
-thumbs_down = '👎'
-thumbs_up = '👍'
+from poll import Poll
+import os
 
 emotes = ["<:teem:677761555521339412>", "<:pogtim:677772157765419035>", 
         "<:PixKev:687506615691509760>", "<:PixJon2:687553248940261426>", 
@@ -16,13 +14,13 @@ emotes = ["<:teem:677761555521339412>", "<:pogtim:677772157765419035>",
         "<:marsus:678056307441532958>", "<:kevsad:677770488486952961>", 
         "<:clangry:677773656931434496>"]
 
-
 class InvalidArgsException(Exception):
     pass
 
 cmds = {}
 rax = {}
 curses = ['fuck']
+
 
 class Jon:
 
@@ -54,10 +52,13 @@ class Jon:
             if reg.match(message.content):
                 try:
                     await func(self, message, *(message.content.split(' ')))
-                except InvalidArgsException:
-                    await message.channel.send(f"Invalid usage\n{func.__doc__}")
+                except InvalidArgsException as e:
+                    if str(e):
+                        await message.channel.send(f"Invalid usage: {str(e)}\n{func.__doc__}")
+                    else:
+                        await message.channel.send(f"Invalid usage\n{func.__doc__}")
                 except Exception as e:
-                    await message.channel.send(f"Unknown Error\n{str(e)}")
+                    await self.do_error(message, e)
                 return
 
         # game picker
@@ -73,66 +74,16 @@ class Jon:
                 try:
                     await func(self, message)
                 except Exception as e:
-                    await message.channel.send(f"Unknown Error\n{str(e)}")
+                    await self.do_error(message, e)
                 return
+
+    async def do_error(self, message, e):
+        await message.channel.send(f"Unknown Error: {type(e).__name__}\n{str(e)}")
+        await message.channel.send("<@!148202759987003392>")
 
     async def do_reaction(self, reaction, user, removed):
-        if self.poll != None and self.poll['msg'].id == reaction.message.id:
-            if user == self.client.user:
-                return
-            else:
-                def remove_ignore(lst, u):
-                    try:
-                        lst.remove(u)
-                    except ValueError:
-                        return
-                if user.id in self.poll['all_ids']:
-
-                    has_yes = False
-                    has_no = False
-
-                    for test_rax in reaction.message.reactions:
-                        async for test_user in test_rax.users():
-                            if test_user.id == user.id:
-                                if test_rax.emoji == thumbs_up:
-                                    has_yes = True
-                                if test_rax.emoji == thumbs_down:
-                                    has_no = True
-
-                    remove_ignore(self.poll['yes'], user)
-                    remove_ignore(self.poll['no'], user)
-                    remove_ignore(self.poll['undecided'], user)
-
-                    if has_yes == has_no:
-                        self.poll['undecided'].append(user)
-                    elif has_yes:
-                        self.poll['yes'].append(user)
-                    elif has_no:
-                        self.poll['no'].append(user)
-
-                    x = PrettyTable(max_table_width = 30)
-
-                    column_names = ["Yes", "No", "Undecided"]
-                    get_names = lambda lst: [person.nick.strip() if person.nick != None else person.name.strip() for person in lst]
-
-                    def do_padding(*args, fillvalue=""):
-                        data = [list(arg) for arg in args]
-                        max_len = max(len(lst) for lst in data)
-                        for lst in data:
-                            yield lst + [fillvalue] * (max_len - len(lst))
-
-                    zipper = zip(column_names,do_padding(
-                        get_names(self.poll['yes']),
-                        get_names(self.poll['no']),
-                        get_names(self.poll['undecided']),
-                        fillvalue="")
-                        )
-                    for title,lst in zipper:
-                        x.add_column(title,lst)
-
-                    await self.poll['msg'].edit(content = f"```{str(x)}```")
-
-
+        if self.poll != None and self.poll.get_poll_id() == reaction.message.id:
+            await self.poll.update_poll(reaction, user)
         else:
             await reaction.message.add_reaction(emotes[random.randint(0, len(emotes)-1)])
 
@@ -206,9 +157,6 @@ class Jon:
         for _, (func, raw_reg) in rax.items():
             s +=  f"{func.__name__.replace('_', ' ')}: `{raw_reg}`" + '\n'
         await message.channel.send(s)
-        
-
-
 
     @_jon_cmd
     async def connect(self, message, *args):
@@ -311,7 +259,7 @@ class Jon:
         Jon is always the imposter
         Usage: !imposter
         '''
-        await message.channel.send("The imposter is Jon")
+        await message.channel.send("The imposter is Jon", tts=True)
 
 
     @_jon_cmd
@@ -363,31 +311,43 @@ class Jon:
     @_jon_cmd
     async def poll(self, message, *args):
         '''
-        Starts a poll for a specific role
-        !poll {role} 
+        Starts a poll for a specific role or ends the last poll
+        !poll start {role} 
+            --yes {yes text}
+            --no {no text}
+            --default {default text}
+            --channel {channel name}
+        !poll end
         '''
-        role = args[1]
+        if len(args) < 2:
+            raise InvalidArgsException()
 
-        # New poll
-        ppl = []
-        for guild in self.client.guilds:
-            if guild.id == self.guild_id:
-                for member in guild.members:
-                    if role.lower() in [r.name.lower() for r in member.roles]:
-                        ppl.append(member)
-                break
-        self.poll = {'yes': [], 'no': [], 'undecided': ppl, 'all_ids': [u.id for u in ppl]}
+        if args[1] not in ['start', 'end']:
+            raise InvalidArgsException()
 
-        ppl_names = [person.nick.strip() if person.nick != None else person.name.strip() for person in ppl]
-        x = PrettyTable()
+        if (args[1] == 'start' and self.poll != None) or (args[1] == 'end'):
+            await self.poll.end_poll()
+            self.poll = None
 
-        column_names = ["Yes", "No", "Undecided"]
-        x.add_column(column_names[0], [""] * len(ppl_names))
-        x.add_column(column_names[1], [""] * len(ppl_names))
-        x.add_column(column_names[2], ppl_names)
-        self.poll['msg'] = await message.channel.send('```' + str(x) + '```')
-        await self.poll['msg'].add_reaction(thumbs_up)
-        await self.poll['msg'].add_reaction(thumbs_down)
+        if args[1] == 'start':
+            self.poll = Poll(self, message, *args)
+            await self.poll.start_poll()
 
-        # await self.message.edit(content = msg)
+    @_jon_cmd
+    async def test(self, message, *args):
+        '''
+        Test cmd
+        !test
+        '''
+        await message.channel.send(f"Test {str(args)}")
+
+    @_jon_cmd
+    async def restart(self, message, *args):
+        '''
+        Restarts jonbot
+        !restart
+        '''
+        os.system('python3 run.py --kill')
+
+
 

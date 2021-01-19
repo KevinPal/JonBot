@@ -223,7 +223,8 @@ async def on_reaction_remove(reaction, user):
     except Exception as e:
         await reaction.message.channel.send(str(e))
 
-
+with open('.pid', 'w+') as f:
+    f.write(str(os.getpid()))
 
 token = ''
 with open('token_file', 'r') as f:
