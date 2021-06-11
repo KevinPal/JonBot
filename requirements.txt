@@ -16,6 +16,6 @@ pafy==0.5.5
 pydub==0.24.1
 six==1.15.0
 typing-extensions==3.7.4.2
-websockets==8.1
+websockets==9.1
 yarl==1.4.2
 youtube-dl==2020.6.16.1
