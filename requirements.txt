@@ -11,7 +11,7 @@ idna==2.9
 idna-ssl==1.1.0
 mcstatus==3.1.1
 multidict==4.7.6
-numpy==1.19.0
+numpy==1.22.0
 pafy==0.5.5
 pydub==0.24.1
 six==1.15.0
